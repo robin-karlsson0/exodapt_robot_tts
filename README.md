@@ -48,7 +48,9 @@ source install/setup.bash
 
 Run ROS node
 ```
-ros2 run tts_riva_bridge tts_riva_bridge
+IP_ADDR=ip.address.to.riva.server
+PORT=50051
+ros2 run tts_riva_bridge tts_riva_bridge --ros-args -p tts_server_uri:="$IP_ADDR:$PORT"
 ```
 
 
