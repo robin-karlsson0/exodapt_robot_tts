@@ -2,12 +2,13 @@ import rclpy
 import riva.client
 import riva.client.audio_io
 from rclpy.node import Node
-from std_msgs.msg import String
+from std_msgs.msg import Bool, String
 
 
 class TtsRivaBridge(Node):
     '''
     '''
+
     def __init__(self):
         super().__init__('tts_riva_bridge')
         self.get_logger().info('TTS Riva Bridge Node Started')
@@ -38,8 +39,17 @@ class TtsRivaBridge(Node):
         sampwidth = 2
         sample_rate_hz = 44100
         self.sound_stream = riva.client.audio_io.SoundCallBack(
-                output_device, nchannels=nchannels, sampwidth=sampwidth, framerate=sample_rate_hz
-            )
+            output_device,
+            nchannels=nchannels,
+            sampwidth=sampwidth,
+            framerate=sample_rate_hz)
+
+        # Topic notifying other nodes like ASR if robot is speaking
+        self.is_speaking_pub = self.create_publisher(
+            Bool,
+            '/tts_is_speaking',
+            10,
+        )
 
     def tts_callback(self, msg: String):
         '''
@@ -52,18 +62,24 @@ class TtsRivaBridge(Node):
         voice_name = 'English-US-RadTTS.Female-1'  # self.get_voice_name(gender, emotion)
         ssml = self.generate_ssml(text, pitch, rate)
 
+        # Set 'is_speaking' state
+        self.is_speaking_pub.publish(Bool(data=True))
+
         # Generate audio
         custom_dictionary_input = {}
         responses = self.riva_tts.synthesize_online(
             ssml,
             voice_name=voice_name,
             custom_dictionary=custom_dictionary_input,
-            )
+        )
 
         for resp in responses:
             self.sound_stream(resp.audio)
 
-    def get_voice_name(self, gender:str, emotion:str) -> str:
+        # Remove 'is_speaking' state
+        self.is_speaking_pub.publish(Bool(data=False))
+
+    def get_voice_name(self, gender: str, emotion: str) -> str:
         '''
         Returns the voice specification syntax for the Riva TTS service.
         '''
@@ -86,9 +102,11 @@ class TtsRivaBridge(Node):
             elif emotion == 'sad':
                 voice_name += 'Sad'
             else:
-                self.get_logger().warning('Invalid female emotion: {emotion}. Defaulting to \'default\'.')
+                self.get_logger().warning(
+                    'Invalid female emotion: {emotion}. Defaulting to \'default\'.'
+                )
                 voice_name += '1'
-            
+
         elif gender == 'male':
             voice_name += 'Male-'
             if emotion == 'default':
@@ -102,16 +120,19 @@ class TtsRivaBridge(Node):
             elif emotion == 'angry':
                 voice_name += 'Angry'
             else:
-                self.get_logger().warning('Invalid male emotion: {emotion}. Defaulting to \'default\'.')
+                self.get_logger().warning(
+                    'Invalid male emotion: {emotion}. Defaulting to \'default\'.'
+                )
                 voice_name += '1'
 
         else:
-            self.get_logger().warning('Invalid voice params: Defaulting to \'female default\'.')
+            self.get_logger().warning(
+                'Invalid voice params: Defaulting to \'female default\'.')
             voice_name += 'Female-1'
 
         return voice_name
 
-    def generate_ssml(self, text:str, pitch:str, rate:str) -> str:
+    def generate_ssml(self, text: str, pitch: str, rate: str) -> str:
         '''
         Returns a SSML templated text.
         '''
