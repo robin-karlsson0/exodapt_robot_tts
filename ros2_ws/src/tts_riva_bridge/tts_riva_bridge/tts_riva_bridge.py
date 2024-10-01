@@ -1,3 +1,4 @@
+import os
 import rclpy
 import riva.client
 import riva.client.audio_io
@@ -51,6 +52,16 @@ class TtsRivaBridge(Node):
             10,
         )
 
+        self.tts_state_file_pth = '/tmp/tts_is_speaking.txt'
+
+         # Create TTS status file if not yet exist
+        if not os.path.isfile(self.tts_state_file_pth):
+            with open(self.tts_state_file_pth, 'w') as f:
+                f.write('0')
+            
+            # Set file permissions to be readable and writable by all users
+            os.chmod(self.tts_state_file_pth, 0o666)
+
     def tts_callback(self, msg: String):
         '''
         Voices TTS messages.
@@ -63,6 +74,8 @@ class TtsRivaBridge(Node):
         ssml = self.generate_ssml(text, pitch, rate)
 
         # Set 'is_speaking' state
+        with open(self.tts_state_file_pth, 'w') as f:
+            f.write('1')
         self.is_speaking_pub.publish(Bool(data=True))
 
         # Generate audio
@@ -78,6 +91,8 @@ class TtsRivaBridge(Node):
 
         # Remove 'is_speaking' state
         self.is_speaking_pub.publish(Bool(data=False))
+        with open(self.tts_state_file_pth, 'w') as f:
+            f.write('0')
 
     def get_voice_name(self, gender: str, emotion: str) -> str:
         '''
