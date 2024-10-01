@@ -4,7 +4,7 @@ import riva.client
 import riva.client.audio_io
 from rclpy.node import Node
 from std_msgs.msg import Bool, String
-
+import time
 
 class TtsRivaBridge(Node):
     '''
@@ -23,8 +23,15 @@ class TtsRivaBridge(Node):
         self.declare_parameter('tts_server_uri', '172.20.137.207:50051')
         self.declare_parameter('tts_topic', 'tts')
 
+        self.declare_parameter('tts_is_speaking_delay', 0.5)
+
         server_uri = self.get_parameter('tts_server_uri').value
         tts_topic = self.get_parameter('tts_topic').value
+
+        self.tts_is_speaking_delay = self.get_parameter(
+            'tts_is_speaking_delay').value
+        self.get_logger().info(
+            f'tts_is_speaking_delay: {self.tts_is_speaking_delay}')
 
         # Subscribe to the TTS topic
         # - All messages published will be voiced
@@ -89,7 +96,8 @@ class TtsRivaBridge(Node):
         for resp in responses:
             self.sound_stream(resp.audio)
 
-        # Remove 'is_speaking' state
+        # Remove 'is_speaking' state after delay
+        time.sleep(self.tts_is_speaking_delay)
         self.is_speaking_pub.publish(Bool(data=False))
         with open(self.tts_state_file_pth, 'w') as f:
             f.write('0')
