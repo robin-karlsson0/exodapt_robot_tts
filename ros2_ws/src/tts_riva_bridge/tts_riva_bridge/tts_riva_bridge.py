@@ -1,10 +1,12 @@
 import os
+import time
+
 import rclpy
 import riva.client
 import riva.client.audio_io
 from rclpy.node import Node
 from std_msgs.msg import Bool, String
-import time
+
 
 class TtsRivaBridge(Node):
     '''
@@ -15,9 +17,10 @@ class TtsRivaBridge(Node):
         self.get_logger().info('TTS Riva Bridge Node Started')
 
         # Declare parameters with default 'robot girl' values
-        self.declare_parameter('tts_voice_gender', 'female')
-        self.declare_parameter('tts_voice_pitch', '3')
-        self.declare_parameter('tts_voice_rate', '140%')
+        # English-US-RadTTSpp.Male.sad
+        self.declare_parameter('tts_voice_name', 'English-US-RadTTS.Female-1')
+        self.declare_parameter('tts_voice_pitch', 3.0)
+        self.declare_parameter('tts_voice_rate', '120%')
         self.declare_parameter('tts_voice_emotion', 'default')
 
         self.declare_parameter('tts_server_uri', '172.20.137.207:50051')
@@ -76,8 +79,7 @@ class TtsRivaBridge(Node):
         text = msg.data
 
         # Generate SSML and voice type according to config parameters
-        gender, pitch, rate, emotion = self.get_voice_config()
-        voice_name = 'English-US-RadTTS.Female-1'  # self.get_voice_name(gender, emotion)
+        voice_name, pitch, rate, emotion = self.get_voice_config()
         ssml = self.generate_ssml(text, pitch, rate)
 
         # Set 'is_speaking' state
@@ -166,11 +168,12 @@ class TtsRivaBridge(Node):
         '''
         Return current voice configuration parameters.
         '''
-        gender = self.get_parameter('tts_voice_gender').value
+        # gender = self.get_parameter('tts_voice_gender').value
+        voice_name = self.get_parameter('tts_voice_name').value
         pitch = self.get_parameter('tts_voice_pitch').value
         rate = self.get_parameter('tts_voice_rate').value
         emotion = self.get_parameter('tts_voice_emotion').value
-        return gender, pitch, rate, emotion
+        return voice_name, pitch, rate, emotion
 
 
 def main(args=None):
