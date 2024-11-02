@@ -1,9 +1,11 @@
 import os
+import re
 import time
 
 import rclpy
 import riva.client
 import riva.client.audio_io
+from num2words import num2words
 from rclpy.node import Node
 from std_msgs.msg import Bool, String
 
@@ -64,11 +66,11 @@ class TtsRivaBridge(Node):
 
         self.tts_state_file_pth = '/tmp/tts_is_speaking.txt'
 
-         # Create TTS status file if not yet exist
+        # Create TTS status file if not yet exist
         if not os.path.isfile(self.tts_state_file_pth):
             with open(self.tts_state_file_pth, 'w') as f:
                 f.write('0')
-            
+
             # Set file permissions to be readable and writable by all users
             os.chmod(self.tts_state_file_pth, 0o666)
 
@@ -77,6 +79,9 @@ class TtsRivaBridge(Node):
         Voices TTS messages.
         '''
         text = msg.data
+
+        # Transform numbers to phonetical strings
+        text = self.convert_numbers_to_words(text)
 
         # Generate SSML and voice type according to config parameters
         voice_name, pitch, rate, emotion = self.get_voice_config()
@@ -174,6 +179,64 @@ class TtsRivaBridge(Node):
         rate = self.get_parameter('tts_voice_rate').value
         emotion = self.get_parameter('tts_voice_emotion').value
         return voice_name, pitch, rate, emotion
+
+    def convert_numbers_to_words(self, text):
+        """
+        Convert all numbers (integers and decimals) in a text string to their word representation.
+
+        Args:
+            text (str): Input text containing numbers
+
+        Returns:
+            str: Text with all numbers converted to words
+
+        Example:
+            >>> text = "I have 1000 apples I bought for 3.5 dollars"
+            >>> convert_numbers_to_words(text)
+            "I have one thousand apples I bought for three point five dollars"
+        """
+        # Regular expression to match numbers (both integers and decimals)
+        # This will match:
+        # - Optional minus sign
+        # - Whole numbers
+        # - Decimal numbers
+        # - Scientific notation
+        number_pattern = r'-?\d*\.?\d+'
+
+        # Replace all numbers in the text with their word representation
+        result = re.sub(number_pattern, self.replace_number, text)
+
+        return result
+
+    @staticmethod
+    def replace_number(match):
+        number_str = match.group(0)
+        try:
+            # Convert string to float first to handle both integers and decimals
+            number = float(number_str)
+
+            # If it's a whole number, convert to int to avoid unnecessary decimals
+            if number.is_integer():
+                number = int(number)
+
+            # Handle decimal numbers
+            if isinstance(number, float) and number % 1 != 0:
+                whole_part = int(number)
+                decimal_str = str(number).split('.')[1]
+
+                # Convert whole number to words
+                whole_words = num2words(whole_part, lang='en_GB')
+
+                # Convert each decimal digit individually
+                decimal_words = ' '.join(num2words(int(digit), lang='en_GB') for digit in decimal_str)
+
+                return f"{whole_words} point {decimal_words}"
+            else:
+                return num2words(number, lang='en_GB')
+
+        except (ValueError, TypeError):
+            # If conversion fails, return the original string
+            return number_str
 
 
 def main(args=None):
