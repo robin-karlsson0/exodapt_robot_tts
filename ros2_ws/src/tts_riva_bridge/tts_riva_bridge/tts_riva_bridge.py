@@ -201,7 +201,8 @@ class TtsRivaBridge(Node):
         # - Whole numbers
         # - Decimal numbers
         # - Scientific notation
-        number_pattern = r'-?\d*\.?\d+'
+        # - Comma-separated numbers (e.g. 1,000)
+        number_pattern = r'-?(?:\d{1,3}(?:,\d{3})*|\d+)(?:\.\d+)?'
 
         # Replace all numbers in the text with their word representation
         result = re.sub(number_pattern, self.replace_number, text)
@@ -212,6 +213,9 @@ class TtsRivaBridge(Node):
     def replace_number(match):
         number_str = match.group(0)
         try:
+            # Remove commas from the number string
+            number_str = number_str.replace(',', '')
+
             # Convert string to float first to handle both integers and decimals
             number = float(number_str)
 
